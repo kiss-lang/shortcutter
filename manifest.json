@@ -1,0 +1,26 @@
+{
+	"name": "shortcutter",
+	"description": "browser extension to inject keyboard shortcuts on any webpage",
+	"background": {
+		"scripts": [
+			"bin/browser-polyfill.js",
+			"bin/background.js"
+		]
+	},
+	"icons": {
+		"48": "icons/icon-48.png"
+	},
+	"content_scripts": [
+		{
+			"js": [
+				"bin/browser-polyfill.js",
+				"bin/main.js"
+			],
+			"matches": [
+				"<all_urls>"
+			]
+		}
+	],
+	"version": "0.0",
+	"manifest_version": 2
+}

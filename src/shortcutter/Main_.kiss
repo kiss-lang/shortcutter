@@ -1,0 +1,6 @@
+(defMacroVar mainKissFile kissFile)
+(loadFrom "kiss-firefox" "src/kiss_firefox/Util.kiss")
+(loadFrom "kiss-firefox" "src/kiss_firefox/ContentUtil.kiss")
+
+(set js.Lib.global.document.body.style.border "5px solid red")
+(sendMessage "exampleMessage" [3 4])

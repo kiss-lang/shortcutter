@@ -1,0 +1,16 @@
+{
+	"main": "index.js",
+	"name": "shortcutter",
+	"description": "browser extension to inject keyboard shortcuts on any webpage",
+	"dependencies": {
+		"webextension-polyfill": "^0.10.0",
+		"@types/webextension-polyfill": "^0.10.0"
+	},
+	"devDependencies": {
+		"dts2hx": "^0.19.0"
+	},
+	"version": "0.0.0",
+	"scripts": {
+		"postinstall": "dts2hx --all --noLibWrap"
+	}
+}

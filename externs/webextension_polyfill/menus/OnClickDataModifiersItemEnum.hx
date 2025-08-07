@@ -1,0 +1,3 @@
+package webextension_polyfill.menus;
+
+typedef OnClickDataModifiersItemEnum = webextension_polyfill.action.OnClickDataModifiersItemEnum;
