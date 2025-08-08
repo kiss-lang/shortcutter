@@ -18,6 +18,7 @@
 	.misc-items
 		table:nth-child(1) > tbody:nth-child(1) > tr > td > div
 .chart-map-container
+	.sea-sector
 .extra-locations")
 
 (function :Int countTabLevel [:String line]
@@ -68,7 +69,7 @@
 			(Browser.window.document.body.appendChild element)
 			element)))
 
-(var keys (.split "1234567890abcdefghijklmnopqrstuvwxyz" ""))
+(var keys (.split "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" ""))
 
 (function :Null selectHierarchy [:Hierarchy level :Bool on &opt :Element element]
 	(localVar labels (labelsElement))
@@ -80,16 +81,21 @@
 					// Highlight the element as selectable and show its key
 					(when on
 						(let [bounds (element.getBoundingClientRect)
+						  		div (Browser.window.document.createElement "div")
 								label (Browser.window.document.createElement "p")]
 							(set label.innerHTML (nth keys idx))
 							(set label.style.color "red")
-							(set label.style.position "absolute")
-							(set label.style.top "$(+ bounds.top Browser.window.scrollY)px")
+							(set div.style.position "absolute")
+							(set div.style.top "$(+ bounds.top Browser.window.scrollY)px")
+							(set div.style.left "$(+ bounds.left Browser.window.scrollX)px")
+							(set div.style.width "${bounds.width}px")
+							(set div.style.height "${bounds.height}px")
 							(set label.style.margin "0px")
-							(set label.style.left "$(+ bounds.left Browser.window.scrollX)px")
 							(set label.style.fontSize "3em")
-							(labels.appendChild label)))
-					(set element.style.border (if on "2px solid red" "")))
+							(set div.style.border "2px solid red")
+							(div.appendChild label)
+							(labels.appendChild div)))
+					)
 			(when retry (Browser.window.setTimeout ->(selectHierarchy level on element) 500)))))
 
 (function :Null popHierarchy []
