@@ -12,7 +12,11 @@
 (var exampleScript
 ".item-tracker 
 	.menu-items > table:nth-child(1) > tbody:nth-child(1) > tr
+		td > div
 	.pearls > div > div
+	.triforce-and-pearls > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > div:nth-child(1)
+	.misc-items
+		table:nth-child(1) > tbody:nth-child(1) > tr > td > div
 .chart-map-container
 .extra-locations")
 
@@ -39,49 +43,91 @@
 
 (var &mut currentHierarchy [])
 (var &mut :Hierarchy rootHierarchy)
+(var &mut :kiss.List<Element> currentElement [])
+
+(function querySelectorAll [:String selector &opt :Element element]
+	(if element
+			(element.querySelectorAll selector)
+		(Browser.window.document.querySelectorAll selector)))
 
 (function :Array<Element> elementsOfLevel [:Hierarchy level &opt :Element element]
 	(let [elements []]
-		(doFor child ~level.children
-		 	(doFor el
-				(if element
-						(element.querySelectorAll child.selector)
-					(Browser.window.document.querySelectorAll child.selector))
+		(doFor child level.children
+		 	(doFor el (querySelectorAll child.selector element)
 				(elements.push (cast el))))
-		~elements))
+		elements))
 
 // On first load, elements may not have populated if the page is dynamically generating anything. So timed-out retrying might be needed
 (var &mut retry true)
 
+(function labelsElement []
+	(ifLet [element (Browser.window.document.getElementById "SHORTCUTTER-LABELS")]
+			element
+		(let [element (Browser.window.document.createElement "div")]
+			(set element.id "SHORTCUTTER-LABELS")
+			(Browser.window.document.body.appendChild element)
+			element)))
+
+(var keys (.split "1234567890abcdefghijklmnopqrstuvwxyz" ""))
+
 (function :Null selectHierarchy [:Hierarchy level :Bool on &opt :Element element]
+	(localVar labels (labelsElement))
+	(unless on (set labels.innerHTML ""))
 	(ifLet [elements (elementsOfLevel level element)]
 		(if elements
-				(doFor element elements
+				(doFor [idx element] (enumerate elements)
 					(set retry false)
-					(set element.style.border "2px solid red"))
+					// Highlight the element as selectable and show its key
+					(when on
+						(let [bounds (element.getBoundingClientRect)
+								label (Browser.window.document.createElement "p")]
+							(set label.innerHTML (nth keys idx))
+							(set label.style.color "red")
+							(set label.style.position "absolute")
+							(set label.style.top "$(+ bounds.top Browser.window.scrollY)px")
+							(set label.style.margin "0px")
+							(set label.style.left "$(+ bounds.left Browser.window.scrollX)px")
+							(set label.style.fontSize "3em")
+							(labels.appendChild label)))
+					(set element.style.border (if on "2px solid red" "")))
 			(when retry (Browser.window.setTimeout ->(selectHierarchy level on element) 500)))))
 
 (function :Null popHierarchy []
 	(selectHierarchy (last currentHierarchy) false)
 	(currentHierarchy.pop)
-	(unless currentHierarchy (set currentHierarchy [rootHierarchy]))
+	(currentElement.pop)
+	(unless currentHierarchy
+		(set currentHierarchy [rootHierarchy])
+		(set currentElement []))
 	(selectHierarchy (last currentHierarchy) true))
 
-(function :Null pushHierarchy [:Hierarchy level]
-	(selectHierarchy (last currentHierarchy) false)
-	(selectHierarchy level true)
-	(currentHierarchy.push level))
+(function :Null pushHierarchy [:Hierarchy level :Element element]
+	(selectHierarchy (last currentHierarchy) false (last currentElement))
+	(selectHierarchy level true element)
+	(currentHierarchy.push level)
+	(currentElement.push element))
 
 (set rootHierarchy (parseHierarchy (Stream.fromString exampleScript)))
 (set currentHierarchy [rootHierarchy])
 
 (Browser.window.addEventListener "keydown"
-	->key
+	->:Null key
 		(case key.key
 			("Escape"
 				(popHierarchy))
-			("1"
-				(print "1"))
+			((when (keys.contains key) key)
+				// Select corresponding element
+				(let [elements (elementsOfLevel (last currentHierarchy) (last currentElement))
+						elementSelected (nth elements (keys.indexOf key))
+						&mut indexOfSelector 0]
+					(doFor level .children (last currentHierarchy)
+						(when (.contains (collect (querySelectorAll level.selector (last currentElement))) elementSelected)
+							(break))
+						++indexOfSelector)
+					(let [nextLevel (nth .children (last currentHierarchy) indexOfSelector)]
+					 	(if nextLevel.children
+								(pushHierarchy nextLevel elementSelected)
+							(.click elementSelected)))))
 			(otherwise)))
 
 (Browser.window.addEventListener "load"
