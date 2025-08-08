@@ -2,5 +2,87 @@
 (loadFrom "kiss-firefox" "src/kiss_firefox/Util.kiss")
 (loadFrom "kiss-firefox" "src/kiss_firefox/ContentUtil.kiss")
 
-(set js.Lib.global.document.body.style.border "5px solid red")
-(sendMessage "exampleMessage" [3 4])
+(import shortcutter.Main)
+(import kiss.Stream)
+(import js.html.Document)
+(import js.html.Element)
+(import js.html.Node)
+(import js.Browser)
+
+(var exampleScript
+".item-tracker 
+	.menu-items > table:nth-child(1) > tbody:nth-child(1) > tr
+	.pearls > div > div
+.chart-map-container
+.extra-locations")
+
+(function :Int countTabLevel [:String line]
+	(localVar &mut tabs 0)
+	(while (= (line.charAt tabs) "\t")
+		++tabs)
+	tabs)
+
+(function :Hierarchy parseHierarchy [:Stream script &opt :Int tabLevel :String key :String selector]
+	(unless tabLevel (set tabLevel 0))
+	(unless key (set key ""))
+	(unless selector (set selector ""))
+	(let [:Hierarchy hierarchy (objectWith [children []] key selector) 
+			linesAtTabLevel (extractOpt (script.takeLinesAsStreamWhile ->line (>= (countTabLevel line) tabLevel)))]
+		(until (linesAtTabLevel.isEmpty)
+			(let [nextChild (extractOpt (linesAtTabLevel.takeLine))
+					nextTabLevel (countTabLevel (extractOpt (linesAtTabLevel.peekLine) ""))]
+				// Indent inward
+				(if (> nextTabLevel tabLevel)
+						(hierarchy.children.push (parseHierarchy linesAtTabLevel nextTabLevel "" nextChild))
+					(hierarchy.children.push (object key "" selector nextChild children [])))))
+		hierarchy))
+
+(var &mut currentHierarchy [])
+(var &mut :Hierarchy rootHierarchy)
+
+(function :Array<Element> elementsOfLevel [:Hierarchy level &opt :Element element]
+	(let [elements []]
+		(doFor child ~level.children
+		 	(doFor el
+				(if element
+						(element.querySelectorAll child.selector)
+					(Browser.window.document.querySelectorAll child.selector))
+				(elements.push (cast el))))
+		~elements))
+
+// On first load, elements may not have populated if the page is dynamically generating anything. So timed-out retrying might be needed
+(var &mut retry true)
+
+(function :Null selectHierarchy [:Hierarchy level :Bool on &opt :Element element]
+	(ifLet [elements (elementsOfLevel level element)]
+		(if elements
+				(doFor element elements
+					(set retry false)
+					(set element.style.border "2px solid red"))
+			(when retry (Browser.window.setTimeout ->(selectHierarchy level on element) 500)))))
+
+(function :Null popHierarchy []
+	(selectHierarchy (last currentHierarchy) false)
+	(currentHierarchy.pop)
+	(unless currentHierarchy (set currentHierarchy [rootHierarchy]))
+	(selectHierarchy (last currentHierarchy) true))
+
+(function :Null pushHierarchy [:Hierarchy level]
+	(selectHierarchy (last currentHierarchy) false)
+	(selectHierarchy level true)
+	(currentHierarchy.push level))
+
+(set rootHierarchy (parseHierarchy (Stream.fromString exampleScript)))
+(set currentHierarchy [rootHierarchy])
+
+(Browser.window.addEventListener "keydown"
+	->key
+		(case key.key
+			("Escape"
+				(popHierarchy))
+			("1"
+				(print "1"))
+			(otherwise)))
+
+(Browser.window.addEventListener "load"
+	->_ (selectHierarchy rootHierarchy true))
