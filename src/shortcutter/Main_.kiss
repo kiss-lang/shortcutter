@@ -17,8 +17,9 @@
 	.triforce-and-pearls > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > div:nth-child(1)
 	.misc-items
 		table:nth-child(1) > tbody:nth-child(1) > tr > td > div
-.chart-map-container
-	.sea-sector
+.sea-sector
+	Escape|0|.header-table > tbody:nth-child(1) > tr:nth-child(1) > td > div
+	.detailed-locations-table > tbody:nth-child(1) > tr > td > div
 .extra-locations")
 
 (function :Int countTabLevel [:String line]
@@ -27,29 +28,37 @@
 		++tabs)
 	tabs)
 
-(function :Hierarchy parseHierarchy [:Stream script &opt :Int tabLevel :String key :String selector]
+(function :Hierarchy parseHierarchy [:Stream script &opt :Int tabLevel :String selector]
 	(unless tabLevel (set tabLevel 0))
-	(unless key (set key ""))
 	(unless selector (set selector ""))
-	(let [:Hierarchy hierarchy (objectWith [children []] key selector) 
+	(let [:Hierarchy hierarchy (objectWith [children []] selector) 
 			linesAtTabLevel (extractOpt (script.takeLinesAsStreamWhile ->line (>= (countTabLevel line) tabLevel)))]
 		(until (linesAtTabLevel.isEmpty)
 			(let [nextChild (extractOpt (linesAtTabLevel.takeLine))
 					nextTabLevel (countTabLevel (extractOpt (linesAtTabLevel.peekLine) ""))]
 				// Indent inward
 				(if (> nextTabLevel tabLevel)
-						(hierarchy.children.push (parseHierarchy linesAtTabLevel nextTabLevel "" nextChild))
-					(hierarchy.children.push (object key "" selector nextChild children [])))))
+						(hierarchy.children.push (parseHierarchy linesAtTabLevel nextTabLevel nextChild))
+					(hierarchy.children.push (object selector nextChild children [])))))
 		hierarchy))
 
 (var &mut currentHierarchy [])
 (var &mut :Hierarchy rootHierarchy)
 (var &mut :kiss.List<Element> currentElement [])
+(var &mut :Map<String,Element> specialKeys (new Map))
 
 (function querySelectorAll [:String selector &opt :Element element]
-	(if element
-			(element.querySelectorAll selector)
-		(Browser.window.document.querySelectorAll selector)))
+	(let [assignedKeys (.split (selector.ltrim) "|")
+			selector (assignedKeys.pop)
+			elements
+				(if element
+						(let [elementQuery (collect (element.querySelectorAll selector))]
+							// Fall back to global if the localized selector finds nothing
+							(or elementQuery (querySelectorAll selector)))
+					(collect (Browser.window.document.querySelectorAll selector)))]
+		(doFor [idx key] (enumerate assignedKeys)
+			(dictSet specialKeys key (cast (nth elements idx))))
+		elements))
 
 (function :Array<Element> elementsOfLevel [:Hierarchy level &opt :Element element]
 	(let [elements []]
@@ -72,12 +81,12 @@
 (var keys (.split "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" ""))
 
 (function :Null selectHierarchy [:Hierarchy level :Bool on &opt :Element element]
+	(set specialKeys (new Map))
 	(localVar labels (labelsElement))
-	(unless on (set labels.innerHTML ""))
+	(set labels.innerHTML "")
 	(ifLet [elements (elementsOfLevel level element)]
 		(if elements
 				(doFor [idx element] (enumerate elements)
-					(set retry false)
 					// Highlight the element as selectable and show its key
 					(when on
 						(let [bounds (element.getBoundingClientRect)
@@ -91,12 +100,10 @@
 							(set div.style.width "${bounds.width}px")
 							(set div.style.height "${bounds.height}px")
 							(set label.style.margin "0px")
-							(set label.style.fontSize "3em")
+							(set label.style.fontSize "2em")
 							(set div.style.border "2px solid red")
 							(div.appendChild label)
-							(labels.appendChild div)))
-					)
-			(when retry (Browser.window.setTimeout ->(selectHierarchy level on element) 500)))))
+							(labels.appendChild div)))))))
 
 (function :Null popHierarchy []
 	(selectHierarchy (last currentHierarchy) false)
@@ -109,6 +116,7 @@
 
 (function :Null pushHierarchy [:Hierarchy level :Element element]
 	(selectHierarchy (last currentHierarchy) false (last currentElement))
+	(set retry true)
 	(selectHierarchy level true element)
 	(currentHierarchy.push level)
 	(currentElement.push element))
@@ -118,23 +126,29 @@
 
 (Browser.window.addEventListener "keydown"
 	->:Null key
-		(case key.key
-			("Escape"
-				(popHierarchy))
-			((when (keys.contains key) key)
-				// Select corresponding element
-				(let [elements (elementsOfLevel (last currentHierarchy) (last currentElement))
-						elementSelected (nth elements (keys.indexOf key))
-						&mut indexOfSelector 0]
-					(doFor level .children (last currentHierarchy)
-						(when (.contains (collect (querySelectorAll level.selector (last currentElement))) elementSelected)
-							(break))
-						++indexOfSelector)
-					(let [nextLevel (nth .children (last currentHierarchy) indexOfSelector)]
-					 	(if nextLevel.children
-								(pushHierarchy nextLevel elementSelected)
+		(let [key key.key]
+			(cond 
+				((specialKeys.exists key)
+					(.click (dictGet specialKeys key)))
+				((keys.contains key)
+					(print "keys contains")
+					// Select corresponding element
+					(let [elements (elementsOfLevel (last currentHierarchy) (last currentElement))
+							elementSelected (nth elements (keys.indexOf key))
+							&mut indexOfSelector 0]
+						(doFor level .children (last currentHierarchy)
+							(when (.contains (querySelectorAll level.selector (last currentElement)) elementSelected)
+								(break))
+							++indexOfSelector)
+						(let [nextLevel (nth .children (last currentHierarchy) indexOfSelector)]
+							(when nextLevel.children
+								(pushHierarchy nextLevel elementSelected))
+							// Click even when we're going deeper into the hierarchy -- which usually should no-op
+							// and not be a problem
 							(.click elementSelected)))))
-			(otherwise)))
+			// Assign an element to Escape when you want it to also pop the hierarchy when triggered:
+			(when (= key "Escape") (popHierarchy))))
 
 (Browser.window.addEventListener "load"
-	->_ (selectHierarchy rootHierarchy true))
+	->_ (Browser.window.setInterval
+		->_ (selectHierarchy (last currentHierarchy) true (last currentElement)) 300))

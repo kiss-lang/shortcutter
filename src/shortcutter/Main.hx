@@ -1,7 +1,6 @@
 package shortcutter;
 
 typedef Hierarchy = {
-    key:String,
     selector:String,
     children:Array<Hierarchy>
 };
