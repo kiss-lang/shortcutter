@@ -16,9 +16,17 @@
 	.triforce-and-pearls > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > div:nth-child(1)
 	.misc-items > table:nth-child(1) > tbody:nth-child(1) > tr > td > div
 .sea-sector
+	.menu-items > table:nth-child(1) > tbody:nth-child(1) > tr > td > div
+	.pearls > div > div
+	.triforce-and-pearls > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > div:nth-child(1)
+	.misc-items > table:nth-child(1) > tbody:nth-child(1) > tr > td > div
 	Escape|Backspace|.header-table > tbody:nth-child(1) > tr:nth-child(1) > td > div
 	.detailed-locations-table > tbody:nth-child(1) > tr > td > div > div
 .extra-location
+	.menu-items > table:nth-child(1) > tbody:nth-child(1) > tr > td > div
+	.pearls > div > div
+	.triforce-and-pearls > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(2) > div:nth-child(1)
+	.misc-items > table:nth-child(1) > tbody:nth-child(1) > tr > td > div
 	Escape|Backspace|.header-table > tbody:nth-child(1) > tr:nth-child(1) > td > div
 	.detailed-locations-table > tbody:nth-child(1) > tr > td > div > div")
 
